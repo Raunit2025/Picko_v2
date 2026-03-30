@@ -31,9 +31,8 @@ export async function POST(req: Request) {
       { expiresIn: '7d' }
     );
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       message: 'User registered successfully',
-      token,
       user: {
         id: user._id.toString(),
         name: user.name,
@@ -41,6 +40,16 @@ export async function POST(req: Request) {
         role: user.role,
       }
     }, { status: 201 });
+
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60,
+      path: '/'
+    });
+
+    return response;
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });

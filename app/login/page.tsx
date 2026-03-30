@@ -34,7 +34,7 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Authentication failed');
 
-      setAuth(data.user, data.token);
+      setAuth(data.user);
       if (data.user.role === 'owner/admin') {
         router.push('/owner');
       } else {
@@ -47,15 +47,34 @@ export default function LoginPage() {
     }
   };
 
-  const fillTestCredentials = (type: 'customer' | 'owner') => {
-    if (type === 'customer') {
-      setEmail('student@university.edu');
-      setPassword('password123');
-    } else {
-      setEmail('owner@dominos.com');
-      setPassword('owner123');
+  const fillTestCredentials = async (type: 'customer' | 'owner') => {
+    const testEmail = type === 'customer' ? 'student@university.edu' : 'owner@dominos.com';
+    const testPassword = type === 'customer' ? 'password123' : 'owner123';
+    
+    setError('');
+    setLoading(true);
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const res = await fetch(`${apiBase}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: testEmail, password: testPassword })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Authentication failed');
+
+      setAuth(data.user);
+      if (data.user.role === 'owner/admin') {
+        router.push('/owner');
+      } else {
+        router.push('/');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    setIsLogin(true);
   };
 
   return (
@@ -76,7 +95,7 @@ export default function LoginPage() {
         </div>
 
         {/* Test credential shortcuts */}
-        {isLogin && (
+        {isLogin && process.env.NODE_ENV !== 'production' && (
           <div className="mb-4 flex gap-2">
             <button
               type="button"

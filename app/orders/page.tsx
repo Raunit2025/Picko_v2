@@ -6,7 +6,7 @@ import { Clock, CheckCircle2, Package, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function OrdersPage() {
-  const { user, token } = useStore();
+  const { user } = useStore();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
@@ -18,7 +18,7 @@ export default function OrdersPage() {
   }, []);
 
   useEffect(() => {
-    if (!user || !token) {
+    if (!user) {
       router.push('/login');
       return;
     }
@@ -26,11 +26,7 @@ export default function OrdersPage() {
     const fetchOrders = async () => {
       try {
         const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api';
-        const res = await fetch(`${apiBase}/orders`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const res = await fetch(`${apiBase}/orders`);
         const data = await res.json();
         
         if (res.ok) {
@@ -46,7 +42,7 @@ export default function OrdersPage() {
     };
 
     fetchOrders();
-  }, [user, token, router]);
+  }, [user, router]);
 
   const getStatusIcon = (status: string) => {
     switch(status) {

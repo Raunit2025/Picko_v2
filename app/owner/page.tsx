@@ -12,7 +12,7 @@ const statusFlow: Record<string, string> = {
 };
 
 export default function OwnerDashboard() {
-  const { user, token } = useStore();
+  const { user } = useStore();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -21,7 +21,7 @@ export default function OwnerDashboard() {
   const fetchOrders = async () => {
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api';
-      const res = await fetch(`${apiBase}/orders`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${apiBase}/orders`);
       const data = await res.json();
       if (res.ok) setOrders(data.orders.slice(0, 10)); // show latest 10
     } catch (e) {
@@ -32,12 +32,10 @@ export default function OwnerDashboard() {
   };
 
   useEffect(() => {
-    if (!user || !token) { router.push('/login'); return; }
-    if (user.role !== 'owner/admin') { alert('Unauthorized'); router.push('/'); return; }
     fetchOrders();
     const interval = setInterval(fetchOrders, 10000);
     return () => clearInterval(interval);
-  }, [user, token]);
+  }, []);
 
   const updateStatus = async (orderId: string, newStatus: string) => {
     try {
@@ -45,7 +43,7 @@ export default function OwnerDashboard() {
       const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api';
       const res = await fetch(`${apiBase}/orders/${orderId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderStatus: newStatus })
       });
       if (res.ok) fetchOrders();

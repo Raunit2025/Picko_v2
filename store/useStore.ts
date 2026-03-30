@@ -23,8 +23,7 @@ interface StoreState {
 
   // Auth State
   user: User | null;
-  token: string | null;
-  setAuth: (user: User, token: string) => void;
+  setAuth: (user: User) => void;
   logout: () => void;
 
   // Cart State
@@ -44,9 +43,8 @@ export const useStore = create<StoreState>()(
 
       // Auth Default State
       user: null,
-      token: null,
-      setAuth: (user, token) => set({ user, token }),
-      logout: () => set({ user: null, token: null }),
+      setAuth: (user) => set({ user }),
+      logout: () => set({ user: null }),
 
       // Cart Default State
       cart: [],

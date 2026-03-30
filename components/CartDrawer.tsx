@@ -40,113 +40,36 @@ export default function CartDrawer({ isOpen, onClose }: { isOpen: boolean; onClo
       setIsProcessing(true);
       const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api';
 
-      // ── Cash → instant order (no payment gateway) ───────────────────────
-      if (paymentMethod === 'cash') {
-        const res = await fetch(`${apiBase}/payment/cash`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: user.id,
-            items: cart,
-            totalAmount: total,
-            deliveryMinutes: deliveryTime,
-            paymentMethod: 'cash'
-          })
-        });
+      const payload = {
+        userId: user.id,
+        items: cart,
+        totalAmount: total,
+        deliveryMinutes: deliveryTime,
+        paymentMethod: paymentMethod,
+        paymentStatus: paymentMethod === 'cash' ? 'pending' : 'paid'
+      };
 
-        if (res.ok) {
-          clearCart();
-          onClose();
-          router.push('/orders');
-        } else {
-          alert('Failed to place order. Please try again.');
-        }
-        return;
+      // Mock "Online" payment delay
+      if (paymentMethod !== 'cash') {
+        // Mocking a payment gateway resolution delay
+        await new Promise(resolve => setTimeout(resolve, 1500));
       }
 
-      // ── UPI / Card → Razorpay modal ──────────────────────────────────────
-      const res = await fetch(`${apiBase}/payment/create`, {
+      const res = await fetch(`${apiBase}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: total * 100 })
+        body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error('Failed to create order');
 
-      const { orderId, amount, currency } = await res.json();
-
-      if (!(window as any).Razorpay) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.body.appendChild(script);
-        });
+      if (res.ok) {
+        clearCart();
+        onClose();
+        router.push('/orders');
+      } else {
+        const data = await res.json();
+        alert(`Failed to place order: ${data.error || 'Please try again'}`);
       }
 
-      // Map our UPI choices to Razorpay's method/flow
-      const upiAppMap: Record<string, string> = {
-        gpay: 'google_pay',
-        phonepe: 'phonepe',
-        paytm: 'paytm',
-      };
-
-      const options: any = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_SVkuXtOh0fr2yT',
-        amount,
-        currency,
-        name: 'Picko Food Delivery',
-        description: `Order via ${paymentMethod === 'gpay' ? 'Google Pay' : paymentMethod === 'phonepe' ? 'PhonePe' : 'Paytm'}`,
-        order_id: orderId,
-        // Pre-select UPI method so the correct app tab loads first
-        method: {
-          upi: true,
-          card: paymentMethod === 'gpay', // GPay supports card too
-          netbanking: false,
-          wallet: paymentMethod === 'paytm',
-        },
-        config: {
-          display: {
-            blocks: {
-              utib: {
-                name: 'Pay via UPI',
-                instruments: [{ method: 'upi', flows: ['qr', 'collect'], apps: [upiAppMap[paymentMethod] || 'google_pay'] }]
-              }
-            },
-            sequence: ['block.utib'],
-            preferences: { show_default_blocks: false },
-          }
-        },
-        handler: async function (response: any) {
-          const verifyRes = await fetch(`${apiBase}/payment/verify`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              userId: user.id,
-              items: cart,
-              totalAmount: total,
-              deliveryMinutes: deliveryTime,
-              paymentMethod
-            })
-          });
-          if (verifyRes.ok) {
-            clearCart();
-            onClose();
-            router.push('/orders');
-          } else {
-            alert('Payment verification failed');
-          }
-        },
-        prefill: { name: user.name, email: user.email },
-        theme: { color: '#ea580c' }
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.on('payment.failed', (r: any) => alert(r.error.description));
-      rzp.open();
     } catch (error) {
       console.error(error);
       alert('Something went wrong during checkout.');

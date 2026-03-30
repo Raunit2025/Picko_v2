@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
-import User from '@/lib/models/User';
 import FoodCourt from '@/lib/models/FoodCourt';
 
 const foodCourtsData = [
@@ -207,35 +206,16 @@ const foodCourtsData = [
 export async function GET() {
   try {
     await dbConnect();
-
-    const seeds = [
-      { name: 'Test Student', email: 'student@university.edu', password: 'password123', role: 'customer' },
-      { name: "Domino's Owner", email: 'owner@dominos.com', password: 'owner123', role: 'owner/admin' },
-    ];
-
-    const results: string[] = [];
-
-    for (const seed of seeds) {
-      const existing = await User.findOne({ email: seed.email });
-      if (!existing) {
-        await User.create(seed);
-        results.push(`✅ Created: ${seed.email}`);
-      } else {
-        results.push(`⏭️ Already exists: ${seed.email}`);
-      }
-    }
-
-    // Seed Food courts data
-    const existingCourts = await FoodCourt.countDocuments();
-    if (existingCourts === 0) {
+    
+    // Auto-seed if database is empty
+    const count = await FoodCourt.countDocuments();
+    if (count === 0) {
       await FoodCourt.insertMany(foodCourtsData);
-      results.push(`✅ Seeded ${foodCourtsData.length} Food Courts`);
-    } else {
-      results.push(`⏭️ Skipped seeding Food Courts (already ${existingCourts} in DB)`);
     }
 
-    return NextResponse.json({ message: 'Seed complete', results });
+    const foodCourts = await FoodCourt.find().lean();
+    return NextResponse.json({ foodCourts }, { status: 200 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Error fetching shops' }, { status: 500 });
   }
 }

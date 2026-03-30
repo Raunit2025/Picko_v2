@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import dbConnect from '@/lib/db';
 import Order from '@/lib/models/Order';
 import jwt from 'jsonwebtoken';
 
-function authenticate(req: Request) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+function authenticate(req: NextRequest) {
+  const token = req.cookies.get('token')?.value;
+  if (!token) {
     throw new Error('Unauthorized');
   }
   
-  const token = authHeader.split(' ')[1];
   try {
     return jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as jwt.JwtPayload;
   } catch (error) {
@@ -17,7 +17,7 @@ function authenticate(req: Request) {
   }
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     let user;
     try {
@@ -37,6 +37,35 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ orders }, { status: 200 });
 
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    let user;
+    try {
+      user = authenticate(req);
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 401 });
+    }
+
+    await dbConnect();
+    const body = await req.json();
+    const { items, totalAmount, deliveryMinutes, paymentMethod, paymentStatus } = body;
+
+    const newOrder = await Order.create({
+      userId: user.id,
+      items,
+      totalAmount,
+      estimatedDelivery: deliveryMinutes || 30,
+      paymentMethod: paymentMethod || 'cash',
+      paymentStatus: paymentStatus || 'pending',
+      orderStatus: 'preparing'
+    });
+
+    return NextResponse.json({ message: 'Order created', order: newOrder }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }

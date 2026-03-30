@@ -16,7 +16,12 @@ export default function Navbar() {
   const cartItemsCount = cart.reduce((t, item) => t + item.quantity, 0);
   const isOwner = user?.role === 'owner/admin';
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
     logout();
     router.push('/');
   };
